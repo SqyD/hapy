@@ -1,10 +1,18 @@
 # A micropython client library for Home Assistant.
-# import json
+import json
 # import sys
-# import requests
+
+
+try:
+  import adafruit_esp32spi.adafruit_esp32spi_requests as requests
+except ImportError:
+  try:
+    import urequests as requests
+  except ImportError:
+    import requests
 
 # Define a Home Assistant Client.
- 
+
 class HAClient:
   def __init__(self, url, access_token = ''):
     # Set the client configuration.
@@ -49,3 +57,10 @@ class HAClient:
     response = self.ha_request("POST", "/api/states/" + entity_id, data = json.dumps(state))
     state = json.loads(response.text)
     return state
+
+  def call_service(self, service, data):
+      path = "/api/services/" + service.replace(".", "/", 1)
+      response = self.ha_request("POST", path, data = json.dumps(data))
+      states = json.loads(response.text)
+      response.close()
+      return states
