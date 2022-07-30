@@ -1,5 +1,10 @@
 # A simple python client library for Home Assistant.
-import ujson as json
+# Found at https://github.com/SqyD/hapy
+
+try:
+    import ujson as json
+except ImportError:
+    import json
 
 # Import a version of requests.
 # Starts with circuit python, then micropython, then plain python.
@@ -51,8 +56,14 @@ class HAClient:
         state = entity['state']
         return state
 
-    def set_state(self, entity_id, state):
-        state = self.ha_request("POST", "/api/states/" + entity_id, data = json.dumps(state))
+    def entity_set(self, entity_id, state_data):
+        state = self.ha_request("POST", "/api/states/" + entity_id, data = json.dumps(state_data))
+        return state
+
+    def entity_set_state(self, entity_id, state):
+        state_data = dict()
+        state_data['state'] = state
+        state = self.entity_set(entity_id, state_data)
         return state
 
     def call_service(self, service, data):
