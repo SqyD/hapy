@@ -1,5 +1,5 @@
-# A opython client library for Home Assistant.
-import json
+# A simple python client library for Home Assistant.
+import ujson as json
 
 # Import a version of requests.
 # Starts with circuit python, then micropython, then plain python.
@@ -24,17 +24,10 @@ class HAClient:
             return False
         else:
             test_response = self.ha_request("GET", "/api/")
-        if test_response.status_code == 200 or test_response.status_code == 201:
-            return True
-        else:
-            return False
-
-    def register(self, regdata):
-        response = self.ha_request(
-            method = "POST",
-            path = "/api/mobile_app/registrations",
-            data = app_registration
-        )
+            if test_response['message'] == "API running":
+                return True
+            else:
+                return False
 
     def ha_request(self, method, path, data = ''):
         headers = {
@@ -45,22 +38,31 @@ class HAClient:
             response = requests.post(self.url + path, data = data, headers = headers)
         elif method == "GET":
             response = requests.get(self.url + path, headers = headers)
-        return response
-
-    def get_state(self, entity_id):
-        response = self.ha_request("GET", "/api/states/" + entity_id)
-        state = json.loads(response.text)
+        data = json.loads(response.text)
         response.close()
+        return data
+
+    def entity_get(self, entity_id):
+        entity = self.ha_request("GET", "/api/states/" + entity_id)
+        return entity
+
+    def entity_get_state(self, entity_id):
+        entity = self.entity_get(entity_id)
+        state = entity['state']
         return state
 
     def set_state(self, entity_id, state):
-        response = self.ha_request("POST", "/api/states/" + entity_id, data = json.dumps(state))
-        state = json.loads(response.text)
+        state = self.ha_request("POST", "/api/states/" + entity_id, data = json.dumps(state))
         return state
 
     def call_service(self, service, data):
         path = "/api/services/" + service.replace(".", "/", 1)
-        response = self.ha_request("POST", path, data = json.dumps(data))
-        states = json.loads(response.text)
-        response.close()
+        states = self.ha_request("POST", path, data = json.dumps(data))
         return states
+
+    def register(self, regdata):
+        response = self.ha_request(
+            method = "POST",
+            path = "/api/mobile_app/registrations",
+            data = app_registration
+        )
