@@ -1,5 +1,6 @@
 # A simple python client library for Home Assistant.
 # Found at https://github.com/SqyD/hapy
+import time
 
 try:
     import ujson as json
@@ -23,6 +24,7 @@ class HAClient:
         # Set the client configuration.
         self.url = url
         self.access_token = access_token
+        self.entities = dict()
 
     def test_auth(self):
         if self.access_token == '':
@@ -47,9 +49,28 @@ class HAClient:
         response.close()
         return data
 
+    def entity_cache(self, entity_id, entity_data, ttl = 30):
+        if not entity_id in self.entities:
+            self.entities[entity_id] = dict()
+        self.entities[entity_id]['data'] = entity_data
+        self.entities[entity_id]['updated'] = time.time()
+        if not ttl in self.entities[entity_id]:
+            self.entities[entity_id]['ttl'] = ttl
+
+    def entity_cache_expire(self, entity_id):
+        if self.entities[entity_id]:
+            del self.entities[entity_id]
+
     def entity_get(self, entity_id):
-        entity = self.ha_request("GET", "/api/states/" + entity_id)
-        return entity
+        expired = True
+        if entity_id in self.entities:
+            expired = self.entities[entity_id]['updated'] + self.entities[entity_id]['ttl'] < time.time()
+        if not expired:
+            entity_data = self.entities[entity_id]['data']
+        else:
+            entity_data = self.ha_request("GET", "/api/states/" + entity_id)
+            self.entity_cache(entity_id, entity_data)
+        return entity_data
 
     def entity_get_state(self, entity_id):
         entity = self.entity_get(entity_id)
@@ -58,6 +79,7 @@ class HAClient:
 
     def entity_set(self, entity_id, state_data):
         state = self.ha_request("POST", "/api/states/" + entity_id, data = json.dumps(state_data))
+        self.entity_cache_expire(entity_id)
         return state
 
     def entity_set_state(self, entity_id, state):
@@ -69,6 +91,8 @@ class HAClient:
     def call_service(self, service, data):
         path = "/api/services/" + service.replace(".", "/", 1)
         states = self.ha_request("POST", path, data = json.dumps(data))
+        if entity_id in data:
+            self.entity_cache_expire(data['entity_id'])
         return states
 
     def register(self, regdata):
