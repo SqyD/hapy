@@ -17,14 +17,61 @@ except ImportError:
     except ImportError:
         import requests
 
+# A generic superclass to manage entity state.
+
+class HaPy:
+    def __init__(self):
+        self.entity_cache = dict()
+
+    def entity_cache_iscached(self, entity_id):
+        if entity_id in self.entity_cache:
+            if self.entity_cache_isexpired(entity_id):
+                self.entity_cache_expire(self, entity_id)
+                return False
+            else:
+                return True
+        else:
+            return False
+
+    def entity_cache_isexpired(self, entity_id):
+        expired = self.entities[entity_id]['updated'] + self.entities[entity_id]['ttl'] < time.time()
+        return expired
+
+    def entity_cache_set(self, entity_id, entity_data, ttl = 30):
+        if not entity_id in self.entity_cache:
+            self.entity_cache[entity_id] = dict()
+        self.entity_cache[entity_id]['data'] = entity_data
+        self.entity_cache[entity_id]['updated'] = time.time()
+        if not ttl in self.entity_cache[entity_id]:
+            self.entity_cache[entity_id]['ttl'] = ttl
+
+    def entity_cache_expire(self, entity_id):
+        if self.entity_cache[entity_id]:
+            del self.entity_cache[entity_id]
+
+    def entity_get(self, entity_id):
+        if self.entity_cache_iscached(entity_id):
+            entity_data = self.entities[entity_id]['data']
+        else:
+            entity_data = False
+        return entity_data
+
+    def entity_get_state(self, entity_id):
+        entity = self.entity_get(entity_id)
+        state = entity['state']
+        return state
+
+    def entity_get_attr(self, entity_id, attr):
+        entity = self.entity_get(entity_id)
+        value = entity['attr'][attr]
+        return value
 # Define a Home Assistant Client.
 
-class HAClient:
-    def __init__(self, url, access_token = ''):
-        # Set the client configuration.
-        self.url = url
-        self.access_token = access_token
-        self.entities = dict()
+class HaPyRest(HaPy):
+    def __init__(self, secrets = dict()):
+        super().__init__()
+        self.url = secrets['url']
+        self.access_token = secrets['access_token']
 
     def test_auth(self):
         if self.access_token == '':
@@ -49,33 +96,17 @@ class HAClient:
         response.close()
         return data
 
-    def entity_cache(self, entity_id, entity_data, ttl = 30):
-        if not entity_id in self.entities:
-            self.entities[entity_id] = dict()
-        self.entities[entity_id]['data'] = entity_data
-        self.entities[entity_id]['updated'] = time.time()
-        if not ttl in self.entities[entity_id]:
-            self.entities[entity_id]['ttl'] = ttl
-
-    def entity_cache_expire(self, entity_id):
-        if self.entities[entity_id]:
-            del self.entities[entity_id]
-
     def entity_get(self, entity_id):
-        expired = True
-        if entity_id in self.entities:
-            expired = self.entities[entity_id]['updated'] + self.entities[entity_id]['ttl'] < time.time()
-        if not expired:
-            entity_data = self.entities[entity_id]['data']
+        # First try getting the data from cache
+        cache = super().entity_get(entity_id)
+        if cache:
+            entity_data = cache
         else:
+            # If not in cache, get it from Home Assistant
             entity_data = self.ha_request("GET", "/api/states/" + entity_id)
-            self.entity_cache(entity_id, entity_data)
+            self.entity_cache_set(entity_id, entity_data)
         return entity_data
 
-    def entity_get_state(self, entity_id):
-        entity = self.entity_get(entity_id)
-        state = entity['state']
-        return state
 
     def entity_set(self, entity_id, state_data):
         state = self.ha_request("POST", "/api/states/" + entity_id, data = json.dumps(state_data))
