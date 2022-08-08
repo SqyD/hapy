@@ -26,7 +26,7 @@ class HaPy:
     def entity_cache_iscached(self, entity_id):
         if entity_id in self.entity_cache:
             if self.entity_cache_isexpired(entity_id):
-                self.entity_cache_expire(self, entity_id)
+                self.entity_cache_expire(entity_id)
                 return False
             else:
                 return True
@@ -34,7 +34,7 @@ class HaPy:
             return False
 
     def entity_cache_isexpired(self, entity_id):
-        expired = self.entities[entity_id]['updated'] + self.entities[entity_id]['ttl'] < time.time()
+        expired = self.entity_cache[entity_id]['updated'] + self.entity_cache[entity_id]['ttl'] < time.time()
         return expired
 
     def entity_cache_set(self, entity_id, entity_data, ttl = 30):
@@ -51,7 +51,7 @@ class HaPy:
 
     def entity_get(self, entity_id):
         if self.entity_cache_iscached(entity_id):
-            entity_data = self.entities[entity_id]['data']
+            entity_data = self.entity_cache[entity_id]['data']
         else:
             entity_data = False
         return entity_data
@@ -63,7 +63,7 @@ class HaPy:
 
     def entity_get_attr(self, entity_id, attr):
         entity = self.entity_get(entity_id)
-        value = entity['attr'][attr]
+        value = entity['attributes'][attr]
         return value
 # Define a Home Assistant Client.
 
