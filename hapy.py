@@ -46,7 +46,7 @@ class HaPy:
             self.entity_cache[entity_id]['ttl'] = ttl
 
     def entity_cache_expire(self, entity_id):
-        if self.entity_cache[entity_id]:
+        if entity_id in self.entity_cache:
             del self.entity_cache[entity_id]
 
     def entity_get(self, entity_id):
@@ -107,10 +107,9 @@ class HaPyRest(HaPy):
             self.entity_cache_set(entity_id, entity_data)
         return entity_data
 
-
     def entity_set(self, entity_id, state_data):
         state = self.ha_request("POST", "/api/states/" + entity_id, data = json.dumps(state_data))
-        self.entity_cache_expire(entity_id)
+        # self.entity_cache_expire(entity_id)
         return state
 
     def entity_set_state(self, entity_id, state):
