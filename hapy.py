@@ -78,7 +78,7 @@ class HaPyRest(HaPy):
             return False
         else:
             test_response = self.ha_request("GET", "/api/")
-            if test_response['message'] == "API running":
+            if test_response['message'] == "API running.":
                 return True
             else:
                 return False
